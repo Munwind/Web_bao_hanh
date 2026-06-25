@@ -336,7 +336,7 @@ export async function getQrDataUrl(qrCode: string) {
   });
 }
 
-export async function getOrActivateProduct(qrCode: string) {
+export async function getProductByQrCode(qrCode: string) {
   const supabase = getSupabaseAdmin();
   const { data: product, error } = await supabase
     .from("products")
@@ -348,15 +348,46 @@ export async function getOrActivateProduct(qrCode: string) {
     return null;
   }
 
-  if (product.activated_at || product.locked) {
-    const { data: events } = await supabase
-      .from("warranty_events")
-      .select("*")
-      .eq("product_id", product.id)
-      .order("created_at", { ascending: false })
-      .limit(5)
-      .returns<WarrantyEvent[]>();
-    return { product, events: events || [], justActivated: false };
+  const { data: events } = await supabase
+    .from("warranty_events")
+    .select("*")
+    .eq("product_id", product.id)
+    .order("created_at", { ascending: false })
+    .limit(5)
+    .returns<WarrantyEvent[]>();
+
+  return { product, events: events || [] };
+}
+
+export async function activateWarrantyAction(qrCode: string, _: unknown, formData: FormData) {
+  const customerName = textValue(formData, "customer_name");
+  const customerPhone = textValue(formData, "customer_phone").replace(/\s+/g, "");
+
+  if (customerName.length < 2) {
+    return { error: "Vui lòng nhập tên người nhận bảo hành." };
+  }
+
+  if (!/^(0|\+84)[0-9]{8,10}$/.test(customerPhone)) {
+    return { error: "Số điện thoại chưa đúng định dạng." };
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("qr_code", qrCode)
+    .single<Product>();
+
+  if (error || !product) {
+    return { error: error?.message || "Không tìm thấy sản phẩm." };
+  }
+
+  if (product.locked) {
+    return { error: "Mã QR này đang bị khóa, vui lòng liên hệ shop." };
+  }
+
+  if (product.activated_at) {
+    redirect(`/warranty/${qrCode}`);
   }
 
   const now = new Date();
@@ -364,6 +395,8 @@ export async function getOrActivateProduct(qrCode: string) {
   const { data: updated, error: updateError } = await supabase
     .from("products")
     .update({
+      customer_name: customerName,
+      customer_phone: customerPhone,
       activated_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
     })
@@ -372,27 +405,15 @@ export async function getOrActivateProduct(qrCode: string) {
     .single<Product>();
 
   if (updateError || !updated) {
-    return { product, events: [], justActivated: false };
+    return { error: updateError?.message || "Không kích hoạt được bảo hành." };
   }
 
   await supabase.from("warranty_events").insert({
     product_id: product.id,
     event_type: "activated",
-    note: "Khách quét QR lần đầu và kích hoạt bảo hành",
+    note: "Khách kích hoạt bảo hành qua QR",
   });
 
-  revalidatePath(`/warranty/${qrCode}`);
-  return {
-    product: updated,
-    events: [
-      {
-        id: "just-activated",
-        product_id: product.id,
-        event_type: "activated",
-        note: "Khách quét QR lần đầu và kích hoạt bảo hành",
-        created_at: now.toISOString(),
-      } satisfies WarrantyEvent,
-    ],
-    justActivated: true,
-  };
+  revalidatePath(`/admin/products/${product.id}`);
+  redirect(`/warranty/${qrCode}`);
 }

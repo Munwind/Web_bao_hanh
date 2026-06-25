@@ -23,6 +23,8 @@ create table if not exists public.products (
   warranty_months integer not null check (warranty_months > 0),
   total_warranty_uses integer not null check (total_warranty_uses >= 0),
   remaining_warranty_uses integer not null check (remaining_warranty_uses >= 0),
+  customer_name text,
+  customer_phone text,
   activated_at timestamptz,
   expires_at timestamptz,
   locked boolean not null default false,
@@ -31,6 +33,8 @@ create table if not exists public.products (
 );
 
 alter table public.products add column if not exists model_id uuid references public.product_models(id) on delete set null;
+alter table public.products add column if not exists customer_name text;
+alter table public.products add column if not exists customer_phone text;
 
 create table if not exists public.warranty_events (
   id uuid primary key default gen_random_uuid(),

@@ -131,6 +131,14 @@ export default async function ProductDetailPage({
           </div>
           <dl className="info-list">
             <div>
+              <dt>Khách hàng</dt>
+              <dd>{product.customer_name || "Chưa kích hoạt"}</dd>
+            </div>
+            <div>
+              <dt>Số điện thoại</dt>
+              <dd>{product.customer_phone || "Chưa kích hoạt"}</dd>
+            </div>
+            <div>
               <dt>Kích hoạt</dt>
               <dd>{formatDate(product.activated_at)}</dd>
             </div>

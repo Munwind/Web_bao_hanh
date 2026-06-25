@@ -21,6 +21,8 @@ export type Product = {
   warranty_months: number;
   total_warranty_uses: number;
   remaining_warranty_uses: number;
+  customer_name: string | null;
+  customer_phone: string | null;
   activated_at: string | null;
   expires_at: string | null;
   locked: boolean;
