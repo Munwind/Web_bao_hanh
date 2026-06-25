@@ -56,7 +56,7 @@ export async function logoutAction() {
   redirect("/admin/login");
 }
 
-export async function createProductAction(_: unknown, formData: FormData) {
+export async function createProductModelAction(_: unknown, formData: FormData) {
   await requireAdmin();
 
   const name = textValue(formData, "name");
@@ -65,15 +65,13 @@ export async function createProductAction(_: unknown, formData: FormData) {
   const description = textValue(formData, "description") || null;
   const warrantyMonths = Math.max(1, numberValue(formData, "warranty_months", 12));
   const totalUses = Math.max(0, numberValue(formData, "total_warranty_uses", 1));
-  const quantity = Math.min(500, Math.max(1, numberValue(formData, "quantity", 1)));
-  const serialStart = Math.max(1, numberValue(formData, "serial_start", 1));
 
   if (!name || !code) {
     return { error: "Cần nhập tên loại sản phẩm và mã loại." };
   }
 
   const supabase = getSupabaseAdmin();
-  const { data: model, error: modelError } = await supabase
+  const { error } = await supabase
     .from("product_models")
     .insert({
       name,
@@ -83,23 +81,43 @@ export async function createProductAction(_: unknown, formData: FormData) {
       default_warranty_months: warrantyMonths,
       default_warranty_uses: totalUses,
     })
+    .select("*");
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+export async function generateModelQrCodesAction(modelId: string, _: unknown, formData: FormData) {
+  await requireAdmin();
+
+  const quantity = Math.min(500, Math.max(1, numberValue(formData, "quantity", 1)));
+  const serialStart = Math.max(1, numberValue(formData, "serial_start", 1));
+  const supabase = getSupabaseAdmin();
+
+  const { data: model, error: modelError } = await supabase
+    .from("product_models")
     .select("*")
+    .eq("id", modelId)
     .single<ProductModel>();
 
   if (modelError || !model) {
-    return { error: modelError?.message || "Không tạo được loại sản phẩm." };
+    return { error: modelError?.message || "Không tìm thấy loại sản phẩm." };
   }
 
   const products = Array.from({ length: quantity }, (_, offset) => ({
     model_id: model.id,
-    name,
-    sku: createSerial(code, serialStart + offset),
+    name: model.name,
+    sku: createSerial(model.code, serialStart + offset),
     qr_code: createQrCode(),
-    image_url: imageUrl,
-    description,
-    warranty_months: warrantyMonths,
-    total_warranty_uses: totalUses,
-    remaining_warranty_uses: totalUses,
+    image_url: model.image_url,
+    description: model.description,
+    warranty_months: model.default_warranty_months,
+    total_warranty_uses: model.default_warranty_uses,
+    remaining_warranty_uses: model.default_warranty_uses,
   }));
 
   const { error } = await supabase.from("products").insert(products);
@@ -109,7 +127,8 @@ export async function createProductAction(_: unknown, formData: FormData) {
   }
 
   revalidatePath("/admin");
-  redirect("/admin");
+  revalidatePath(`/admin/models/${modelId}`);
+  return { ok: true };
 }
 
 export async function updateProductAction(productId: string, _: unknown, formData: FormData) {
@@ -233,6 +252,58 @@ export async function getProducts(query = "") {
 
   if (error) throw new Error(error.message);
   return data as Product[];
+}
+
+export async function getProductModels(query = "") {
+  await requireAdmin();
+  const supabase = getSupabaseAdmin();
+  const trimmed = query.trim();
+
+  const modelsRequest = supabase
+    .from("product_models")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const { data: models, error: modelsError } = trimmed
+    ? await modelsRequest.or(`name.ilike.%${trimmed}%,code.ilike.%${trimmed}%`)
+    : await modelsRequest;
+
+  if (modelsError) throw new Error(modelsError.message);
+
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("id, model_id, activated_at, remaining_warranty_uses");
+
+  if (productsError) throw new Error(productsError.message);
+
+  return (models || []).map((model) => {
+    const units = (products || []).filter((product) => product.model_id === model.id);
+    return {
+      ...model,
+      unit_count: units.length,
+      activated_count: units.filter((product) => product.activated_at).length,
+      depleted_count: units.filter((product) => product.remaining_warranty_uses <= 0).length,
+    };
+  });
+}
+
+export async function getProductModelWithProducts(id: string) {
+  await requireAdmin();
+  const supabase = getSupabaseAdmin();
+  const [{ data: model, error: modelError }, { data: products, error: productsError }] =
+    await Promise.all([
+      supabase.from("product_models").select("*").eq("id", id).single<ProductModel>(),
+      supabase
+        .from("products")
+        .select("*, product_models(*)")
+        .eq("model_id", id)
+        .order("sku", { ascending: true })
+        .returns<Product[]>(),
+    ]);
+
+  if (modelError) throw new Error(modelError.message);
+  if (productsError) throw new Error(productsError.message);
+  return { model, products: products || [] };
 }
 
 export async function getProductWithEvents(id: string) {

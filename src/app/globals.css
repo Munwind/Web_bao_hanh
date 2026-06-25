@@ -243,8 +243,55 @@ a {
   grid-template-columns: 380px minmax(0, 1fr);
 }
 
+.model-detail-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 380px minmax(0, 1fr);
+  margin-bottom: 18px;
+}
+
 .history-panel {
   grid-column: 1 / -1;
+}
+
+.serial-panel {
+  margin-top: 18px;
+}
+
+.qr-print-sheet {
+  display: none;
+}
+
+.qr-print-label {
+  align-items: center;
+  border: 1px solid #111827;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  min-height: 72mm;
+  padding: 8mm;
+  text-align: center;
+}
+
+.qr-print-label strong,
+.qr-print-label span,
+.qr-print-label small {
+  display: block;
+}
+
+.qr-print-label strong {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.qr-print-label span {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.qr-print-label small {
+  font-size: 7px;
+  overflow-wrap: anywhere;
 }
 
 .admin-panel,
@@ -1278,6 +1325,7 @@ textarea:focus {
   .home-hero,
   .admin-grid,
   .detail-grid,
+  .model-detail-grid,
   .rod-gallery {
     grid-template-columns: 1fr;
   }
@@ -1298,6 +1346,32 @@ textarea:focus {
 
   .create-panel {
     order: 2;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .no-print,
+  .admin-header,
+  .admin-panel,
+  .home-shell {
+    display: none !important;
+  }
+
+  .admin-shell {
+    margin: 0;
+    max-width: none;
+    padding: 0;
+  }
+
+  .qr-print-sheet {
+    display: grid;
+    gap: 4mm;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 8mm;
   }
 }
 
