@@ -811,6 +811,263 @@ textarea:focus {
   padding: 10px 12px;
 }
 
+.market-verify {
+  background: #f5f5f5;
+  color: #222222;
+  margin: 0 auto;
+  max-width: 520px;
+  min-height: 100vh;
+  padding-bottom: 18px;
+}
+
+.market-header {
+  align-items: center;
+  background: #ee4d2d;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px 16px;
+}
+
+.market-header span {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.market-header strong {
+  display: block;
+  font-size: 1.08rem;
+  margin-top: 2px;
+}
+
+.market-status,
+.market-section,
+.market-footer {
+  background: #ffffff;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.market-status {
+  padding: 16px;
+}
+
+.market-status-main {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.market-status-main svg {
+  color: #ee4d2d;
+  flex: 0 0 auto;
+}
+
+.market-status-main p {
+  color: #767676;
+  font-size: 0.82rem;
+  margin: 0 0 2px;
+}
+
+.market-status-main h1 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.market-status > span {
+  color: #ee4d2d;
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.market-section {
+  margin-top: 8px;
+  padding: 14px 16px;
+}
+
+.market-section-title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.market-section-title svg {
+  color: #ee4d2d;
+}
+
+.market-section-title h2 {
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.market-product {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr auto;
+}
+
+.market-product strong {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.market-product span,
+.market-desc,
+.market-empty {
+  color: #767676;
+  font-size: 0.9rem;
+}
+
+.market-product span {
+  display: block;
+  margin-top: 4px;
+}
+
+.market-product svg {
+  color: #b5b5b5;
+}
+
+.market-desc {
+  border-top: 1px solid #eeeeee;
+  line-height: 1.55;
+  margin: 12px 0 0;
+  padding-top: 10px;
+}
+
+.market-stats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.market-stats div {
+  background: #fafafa;
+  border: 1px solid #eeeeee;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.market-stats span {
+  color: #767676;
+  display: block;
+  font-size: 0.78rem;
+}
+
+.market-stats strong {
+  color: #ee4d2d;
+  display: block;
+  font-size: 1.25rem;
+  margin-top: 4px;
+}
+
+.market-progress {
+  background: #eeeeee;
+  border-radius: 999px;
+  height: 6px;
+  margin: 14px 0 6px;
+  overflow: hidden;
+}
+
+.market-progress span {
+  background: #ee4d2d;
+  display: block;
+  height: 100%;
+}
+
+.market-info-row {
+  align-items: center;
+  border-top: 1px solid #eeeeee;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0 0;
+  margin-top: 12px;
+}
+
+.market-info-row span {
+  color: #767676;
+  font-size: 0.9rem;
+}
+
+.market-info-row strong {
+  font-size: 0.94rem;
+  text-align: right;
+}
+
+.market-history {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.market-history li {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto 1fr;
+}
+
+.market-history svg {
+  color: #ee4d2d;
+  margin-top: 2px;
+}
+
+.market-history strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.market-history span,
+.market-history p {
+  color: #767676;
+  display: block;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin: 3px 0 0;
+}
+
+.market-footer {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr auto;
+  margin-top: 8px;
+  padding: 14px 16px;
+}
+
+.market-footer strong,
+.market-footer span {
+  display: block;
+}
+
+.market-footer span {
+  color: #767676;
+  font-size: 0.88rem;
+  margin-top: 2px;
+}
+
+.market-footer a {
+  align-items: center;
+  background: #ee4d2d;
+  border-radius: 8px;
+  color: #ffffff;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 6px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 12px;
+}
+
 .verify-header {
   align-items: center;
   background: var(--surface);
@@ -1108,5 +1365,14 @@ textarea:focus {
 
   .contact-card {
     grid-template-columns: 1fr;
+  }
+
+  .market-stats,
+  .market-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .market-footer a {
+    width: 100%;
   }
 }

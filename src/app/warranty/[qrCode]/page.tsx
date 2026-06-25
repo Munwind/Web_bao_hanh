@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import {
   BadgeCheck,
-  CalendarClock,
+  CalendarDays,
   CheckCircle2,
-  Clock3,
+  ChevronRight,
+  ClipboardList,
   History,
   Phone,
   ShieldAlert,
   ShieldCheck,
-  TicketCheck,
 } from "lucide-react";
 import { getOrActivateProduct } from "@/app/actions";
 import { EmptyConfig } from "@/components/EmptyConfig";
@@ -58,110 +58,109 @@ export default async function WarrantyPage({
     daysRemaining === null
       ? "Bảo hành sẽ bắt đầu từ lần quét đầu tiên"
       : daysRemaining > 0
-        ? `Còn ${daysRemaining} ngày bảo hành`
-        : "Thời hạn bảo hành đã kết thúc";
+        ? `Còn ${daysRemaining} ngày`
+        : "Đã hết thời hạn";
 
   return (
-    <main className="verify-shell simple-verify">
-      <header className="verify-topbar">
+    <main className="market-verify">
+      <header className="market-header">
         <div>
-          <p>{shopName}</p>
-          <strong>Tra cứu bảo hành</strong>
+          <span>{shopName}</span>
+          <strong>Bảo hành điện tử</strong>
         </div>
-        <BadgeCheck size={24} />
+        <BadgeCheck size={22} />
       </header>
 
-      <section className={`verify-summary verify-${status.tone}`}>
-        <div className="verify-status-line">
-          <StatusIcon size={20} />
-          <span>{justActivated ? "Đã kích hoạt" : "Trạng thái"}</span>
+      <section className="market-status">
+        <div className="market-status-main">
+          <StatusIcon size={22} />
+          <div>
+            <p>{justActivated ? "Đã kích hoạt bảo hành" : "Trạng thái bảo hành"}</p>
+            <h1>{status.label}</h1>
+          </div>
         </div>
-        <h1>{status.label}</h1>
-        <p>{remainingText}</p>
+        <span>{remainingText}</span>
       </section>
 
-      <section className="verify-card product-ticket">
-        <div className="product-mini">
-          <div className="mini-icon">
-            <TicketCheck size={20} />
-          </div>
+      <section className="market-section">
+        <div className="market-section-title">
+          <ClipboardList size={18} />
+          <h2>Thông tin sản phẩm</h2>
+        </div>
+        <div className="market-product">
           <div>
-            <p>Sản phẩm</p>
-            <h2>{product.name}</h2>
+            <strong>{product.name}</strong>
             <span>Serial: {product.sku}</span>
           </div>
+          <ChevronRight size={18} />
         </div>
-        {product.description ? <p className="product-desc">{product.description}</p> : null}
+        {product.description ? <p className="market-desc">{product.description}</p> : null}
       </section>
 
-      <section className="verify-card">
-        <div className="section-title">
-          <CalendarClock size={18} />
-          <h2>Thông tin bảo hành</h2>
+      <section className="market-section">
+        <div className="market-section-title">
+          <CalendarDays size={18} />
+          <h2>Chi tiết bảo hành</h2>
         </div>
-
-        <div className="warranty-main-stat">
+        <div className="market-stats">
           <div>
             <span>Thời gian còn lại</span>
             <strong>{daysRemaining === null ? "Chưa bắt đầu" : `${daysRemaining} ngày`}</strong>
           </div>
           <div>
-            <span>Lượt còn lại</span>
+            <span>Lượt bảo hành</span>
             <strong>
               {product.remaining_warranty_uses}/{product.total_warranty_uses}
             </strong>
           </div>
         </div>
-
-        <div className="progress-track verify-progress" aria-label="Tiến độ bảo hành">
+        <div className="market-progress" aria-label="Tiến độ bảo hành">
           <span style={{ width: `${progress}%` }} />
         </div>
-
-        <div className="timeline-list">
-          <div>
-            <Clock3 size={17} />
-            <span>Ngày kích hoạt</span>
-            <strong>{formatDate(product.activated_at)}</strong>
-          </div>
-          <div>
-            <CheckCircle2 size={17} />
-            <span>Ngày hết hạn</span>
-            <strong>{formatDate(product.expires_at)}</strong>
-          </div>
+        <div className="market-info-row">
+          <span>Ngày kích hoạt</span>
+          <strong>{formatDate(product.activated_at)}</strong>
+        </div>
+        <div className="market-info-row">
+          <span>Ngày hết hạn</span>
+          <strong>{formatDate(product.expires_at)}</strong>
         </div>
       </section>
 
-      <section className="verify-card">
-        <div className="section-title">
+      <section className="market-section">
+        <div className="market-section-title">
           <History size={18} />
           <h2>Lịch sử bảo hành</h2>
         </div>
         {events.length === 0 ? (
-          <p className="muted">Chưa có lịch sử bảo hành.</p>
+          <p className="market-empty">Chưa có lịch sử bảo hành.</p>
         ) : (
-          <ol className="event-list compact">
+          <ol className="market-history">
             {events.map((event) => (
               <li key={event.id}>
-                <time>{formatDateTime(event.created_at)}</time>
-                <strong>
-                  {event.event_type === "activated" ? "Kích hoạt bảo hành" : "Bảo hành đã xử lý"}
-                </strong>
-                <p>{event.note}</p>
+                <CheckCircle2 size={16} />
+                <div>
+                  <strong>
+                    {event.event_type === "activated" ? "Kích hoạt bảo hành" : "Bảo hành đã xử lý"}
+                  </strong>
+                  <span>{formatDateTime(event.created_at)}</span>
+                  {event.note ? <p>{event.note}</p> : null}
+                </div>
               </li>
             ))}
           </ol>
         )}
       </section>
 
-      <section className="contact-card">
+      <footer className="market-footer">
         <div>
           <strong>Cần hỗ trợ?</strong>
-          <p>Liên hệ shop và đọc serial để được kiểm tra nhanh.</p>
+          <span>Đọc serial cho shop để kiểm tra nhanh.</span>
         </div>
         <a href={shopZalo} target="_blank" rel="noreferrer">
           <Phone size={16} /> Liên hệ
         </a>
-      </section>
+      </footer>
     </main>
   );
 }
