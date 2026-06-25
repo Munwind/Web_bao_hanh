@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import { randomBytes } from "node:crypto";
 import { clearAdminSession, isAdminAuthenticated, isValidAdminPassword, setAdminSession } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import type { Product, WarrantyEvent } from "@/lib/types";
+import type { Product, ProductModel, WarrantyEvent } from "@/lib/types";
 import { addMonths, getWarrantyUrl } from "@/lib/warranty";
 
 function textValue(formData: FormData, key: string) {
@@ -20,6 +20,19 @@ function numberValue(formData: FormData, key: string, fallback: number) {
 
 function createQrCode() {
   return randomBytes(9).toString("base64url").toLowerCase();
+}
+
+function normalizeCode(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24);
+}
+
+function createSerial(prefix: string, index: number) {
+  return `${prefix}-${String(index).padStart(4, "0")}`;
 }
 
 async function requireAdmin() {
@@ -47,28 +60,49 @@ export async function createProductAction(_: unknown, formData: FormData) {
   await requireAdmin();
 
   const name = textValue(formData, "name");
-  const sku = textValue(formData, "sku");
+  const code = normalizeCode(textValue(formData, "code") || name);
   const imageUrl = textValue(formData, "image_url") || null;
   const description = textValue(formData, "description") || null;
   const warrantyMonths = Math.max(1, numberValue(formData, "warranty_months", 12));
   const totalUses = Math.max(0, numberValue(formData, "total_warranty_uses", 1));
+  const quantity = Math.min(500, Math.max(1, numberValue(formData, "quantity", 1)));
+  const serialStart = Math.max(1, numberValue(formData, "serial_start", 1));
 
-  if (!name || !sku) {
-    return { error: "Cần nhập tên sản phẩm và mã/serial." };
+  if (!name || !code) {
+    return { error: "Cần nhập tên loại sản phẩm và mã loại." };
   }
 
   const supabase = getSupabaseAdmin();
-  const qrCode = createQrCode();
-  const { error } = await supabase.from("products").insert({
+  const { data: model, error: modelError } = await supabase
+    .from("product_models")
+    .insert({
+      name,
+      code,
+      image_url: imageUrl,
+      description,
+      default_warranty_months: warrantyMonths,
+      default_warranty_uses: totalUses,
+    })
+    .select("*")
+    .single<ProductModel>();
+
+  if (modelError || !model) {
+    return { error: modelError?.message || "Không tạo được loại sản phẩm." };
+  }
+
+  const products = Array.from({ length: quantity }, (_, offset) => ({
+    model_id: model.id,
     name,
-    sku,
-    qr_code: qrCode,
+    sku: createSerial(code, serialStart + offset),
+    qr_code: createQrCode(),
     image_url: imageUrl,
     description,
     warranty_months: warrantyMonths,
     total_warranty_uses: totalUses,
     remaining_warranty_uses: totalUses,
-  });
+  }));
+
+  const { error } = await supabase.from("products").insert(products);
 
   if (error) {
     return { error: error.message };
@@ -91,18 +125,20 @@ export async function updateProductAction(productId: string, _: unknown, formDat
   const locked = formData.get("locked") === "on";
 
   if (!name || !sku) {
-    return { error: "Cần nhập tên sản phẩm và mã/serial." };
+    return { error: "Cần nhập tên sản phẩm và serial." };
   }
 
   const supabase = getSupabaseAdmin();
   const { data: current } = await supabase
     .from("products")
-    .select("activated_at")
+    .select("activated_at, model_id")
     .eq("id", productId)
-    .single<Pick<Product, "activated_at">>();
+    .single<Pick<Product, "activated_at" | "model_id">>();
+
   const expiresAt = current?.activated_at
     ? addMonths(new Date(current.activated_at), warrantyMonths).toISOString()
     : null;
+
   const { error } = await supabase
     .from("products")
     .update({
@@ -120,6 +156,19 @@ export async function updateProductAction(productId: string, _: unknown, formDat
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (current?.model_id) {
+    await supabase
+      .from("product_models")
+      .update({
+        name,
+        image_url: imageUrl,
+        description,
+        default_warranty_months: warrantyMonths,
+        default_warranty_uses: totalUses,
+      })
+      .eq("id", current.model_id);
   }
 
   revalidatePath("/admin");
@@ -172,7 +221,7 @@ export async function getProducts(query = "") {
   const supabase = getSupabaseAdmin();
   const request = supabase
     .from("products")
-    .select("*")
+    .select("*, product_models(*)")
     .order("created_at", { ascending: false });
 
   const trimmed = query.trim();
@@ -191,7 +240,7 @@ export async function getProductWithEvents(id: string) {
   const supabase = getSupabaseAdmin();
   const [{ data: product, error: productError }, { data: events, error: eventsError }] =
     await Promise.all([
-      supabase.from("products").select("*").eq("id", id).single<Product>(),
+      supabase.from("products").select("*, product_models(*)").eq("id", id).single<Product>(),
       supabase
         .from("warranty_events")
         .select("*")
@@ -220,7 +269,7 @@ export async function getOrActivateProduct(qrCode: string) {
   const supabase = getSupabaseAdmin();
   const { data: product, error } = await supabase
     .from("products")
-    .select("*")
+    .select("*, product_models(*)")
     .eq("qr_code", qrCode)
     .single<Product>();
 
@@ -248,7 +297,7 @@ export async function getOrActivateProduct(qrCode: string) {
       expires_at: expiresAt.toISOString(),
     })
     .eq("id", product.id)
-    .select("*")
+    .select("*, product_models(*)")
     .single<Product>();
 
   if (updateError || !updated) {

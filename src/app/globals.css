@@ -432,8 +432,11 @@ textarea:focus {
 }
 
 .product-row span {
+  align-items: center;
   color: #475467;
+  display: flex;
   font-size: 0.9rem;
+  gap: 5px;
 }
 
 .status-badge {

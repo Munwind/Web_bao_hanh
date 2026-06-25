@@ -90,6 +90,7 @@ export default async function WarrantyPage({
         <div className="market-product">
           <div>
             <strong>{product.name}</strong>
+            <span>Loại: {product.product_models?.code || "Chưa phân loại"}</span>
             <span>Serial: {product.sku}</span>
           </div>
           <ChevronRight size={18} />

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search, ShieldCheck } from "lucide-react";
+import { Boxes, Plus, Search, ShieldCheck } from "lucide-react";
 import { createProductAction, getProducts, logoutAction } from "@/app/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { DatabaseSetupNotice } from "@/components/DatabaseSetupNotice";
@@ -7,6 +7,7 @@ import { EmptyConfig } from "@/components/EmptyConfig";
 import { StatusBadge } from "@/components/StatusBadge";
 import { hasSupabaseConfig } from "@/lib/supabase";
 import { formatDate } from "@/lib/warranty";
+import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function AdminPage({
   if (!hasSupabaseConfig()) return <EmptyConfig />;
 
   const { q = "" } = await searchParams;
-  let products = [];
+  let products: Product[] = [];
 
   try {
     products = await getProducts(q);
@@ -26,6 +27,7 @@ export default async function AdminPage({
     const message = error instanceof Error ? error.message : "Không đọc được dữ liệu sản phẩm.";
     if (
       message.includes("products") ||
+      message.includes("product_models") ||
       message.includes("schema cache") ||
       message.includes("relation")
     ) {
@@ -39,9 +41,9 @@ export default async function AdminPage({
       <header className="admin-header">
         <div>
           <p className="eyebrow">Trang quản trị</p>
-          <h1>Sản phẩm bảo hành</h1>
+          <h1>Serial bảo hành</h1>
           <p className="page-subtitle">
-            Tạo sản phẩm, mở chi tiết để xuất QR và trừ lượt bảo hành.
+            Tạo loại sản phẩm, sinh nhiều QR theo số lượng, rồi quản lý từng cây theo serial riêng.
           </p>
         </div>
         <form action={logoutAction}>
@@ -55,17 +57,27 @@ export default async function AdminPage({
         <aside className="admin-panel create-panel">
           <div className="section-title">
             <Plus size={18} />
-            <h2>Tạo sản phẩm mới</h2>
+            <h2>Tạo loại sản phẩm và sinh QR</h2>
           </div>
           <ActionForm action={createProductAction} className="stack-form">
             <label>
-              Tên sản phẩm
+              Tên loại sản phẩm
               <input name="name" placeholder="VD: Cần câu Shimano Surf Leader" required />
             </label>
             <label>
-              Mã / serial
-              <input name="sku" placeholder="VD: CC-2026-0001" required />
+              Mã loại
+              <input name="code" placeholder="VD: SHIMANO-SURF" required />
             </label>
+            <div className="two-cols">
+              <label>
+                Số lượng QR
+                <input name="quantity" type="number" min={1} max={500} defaultValue={10} required />
+              </label>
+              <label>
+                Serial bắt đầu
+                <input name="serial_start" type="number" min={1} defaultValue={1} required />
+              </label>
+            </div>
             <label>
               Ảnh sản phẩm URL
               <input name="image_url" placeholder="https://..." />
@@ -80,11 +92,11 @@ export default async function AdminPage({
                 <input name="warranty_months" type="number" min={1} defaultValue={12} required />
               </label>
               <label>
-                Số lượt
+                Lượt BH
                 <input name="total_warranty_uses" type="number" min={0} defaultValue={2} required />
               </label>
             </div>
-            <SubmitButton>Tạo và sinh QR</SubmitButton>
+            <SubmitButton>Tạo loại và sinh QR</SubmitButton>
           </ActionForm>
         </aside>
 
@@ -92,23 +104,25 @@ export default async function AdminPage({
           <div className="list-toolbar">
             <div className="section-title">
               <ShieldCheck size={18} />
-              <h2>Danh sách sản phẩm</h2>
+              <h2>Danh sách serial/QR</h2>
             </div>
             <form className="search-box">
               <Search size={16} />
-              <input name="q" defaultValue={q} placeholder="Tìm tên, serial, mã QR..." />
+              <input name="q" defaultValue={q} placeholder="Tìm loại, serial, mã QR..." />
             </form>
           </div>
 
           <div className="product-list">
             {products.length === 0 ? (
-              <p className="muted">Chưa có sản phẩm nào hoặc không tìm thấy kết quả.</p>
+              <p className="muted">Chưa có serial nào hoặc không tìm thấy kết quả.</p>
             ) : (
               products.map((product) => (
                 <Link className="product-row" href={`/admin/products/${product.id}`} key={product.id}>
                   <div>
                     <strong>{product.name}</strong>
-                    <span>{product.sku}</span>
+                    <span>
+                      <Boxes size={14} /> {product.product_models?.code || "Chưa có loại"} · {product.sku}
+                    </span>
                   </div>
                   <StatusBadge product={product} />
                   <span>{product.remaining_warranty_uses}/{product.total_warranty_uses} lượt</span>

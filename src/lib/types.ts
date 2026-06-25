@@ -1,5 +1,18 @@
+export type ProductModel = {
+  id: string;
+  name: string;
+  code: string;
+  image_url: string | null;
+  description: string | null;
+  default_warranty_months: number;
+  default_warranty_uses: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Product = {
   id: string;
+  model_id: string | null;
   name: string;
   sku: string;
   qr_code: string;
@@ -13,6 +26,7 @@ export type Product = {
   locked: boolean;
   created_at: string;
   updated_at: string;
+  product_models?: ProductModel | null;
 };
 
 export type WarrantyEvent = {

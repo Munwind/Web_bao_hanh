@@ -38,7 +38,9 @@ export default async function ProductDetailPage({
             <ArrowLeft size={16} /> Quay lại danh sách
           </Link>
           <h1>{product.name}</h1>
-          <p className="page-subtitle">Serial: {product.sku}</p>
+          <p className="page-subtitle">
+            Loại: {product.product_models?.code || "Chưa phân loại"} · Serial: {product.sku}
+          </p>
         </div>
         <StatusBadge product={product} />
       </header>
@@ -47,9 +49,11 @@ export default async function ProductDetailPage({
         <aside className="admin-panel qr-panel">
           <div className="section-title">
             <QrCode size={18} />
-            <h2>QR sản phẩm</h2>
+            <h2>QR của serial này</h2>
           </div>
-          <p className="muted qr-help">Tải mã này ra PNG, in tem và dán trực tiếp lên cần câu.</p>
+          <p className="muted qr-help">
+            Đây là QR riêng cho đúng cây có serial <strong>{product.sku}</strong>. Tải PNG, in tem và dán lên sản phẩm.
+          </p>
           <Image src={qrDataUrl} alt={`QR ${product.sku}`} width={320} height={320} unoptimized />
           <p className="code-pill">{product.qr_code}</p>
           <div className="qr-actions">
@@ -65,15 +69,15 @@ export default async function ProductDetailPage({
         <section className="admin-panel">
           <div className="section-title">
             <Save size={18} />
-            <h2>Thông tin sản phẩm</h2>
+            <h2>Thông tin serial</h2>
           </div>
           <ActionForm action={updateAction} className="stack-form">
             <label>
-              Tên sản phẩm
+              Tên loại sản phẩm
               <input name="name" defaultValue={product.name} required />
             </label>
             <label>
-              Mã / serial
+              Serial
               <input name="sku" defaultValue={product.sku} required />
             </label>
             <label>
@@ -110,7 +114,7 @@ export default async function ProductDetailPage({
             </div>
             <label className="checkbox-line">
               <input name="locked" type="checkbox" defaultChecked={product.locked} />
-              Khóa sản phẩm / QR
+              Khóa QR/serial này
             </label>
             <SubmitButton>Lưu thay đổi</SubmitButton>
           </ActionForm>
