@@ -36,7 +36,7 @@ Neu dung domain that, dat `NEXT_PUBLIC_SITE_URL=https://ten-domain-cua-anh.vn` d
 
 ```bash
 docker build -t web-bao-hanh .
-docker run -d --name web-bao-hanh --env-file .env.local -p 3000:3000 web-bao-hanh
+docker run -d --name web-bao-hanh --env-file .env.local -p 3000:10000 web-bao-hanh
 ```
 
 Sau do tro Nginx/Caddy tu domain vao `http://127.0.0.1:3000`.
