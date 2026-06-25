@@ -1,0 +1,12 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#0f172a"/>
+  <path d="M123 565C314 507 510 420 698 303C846 210 976 126 1092 92" stroke="#f8fafc" stroke-width="22" stroke-linecap="round"/>
+  <path d="M169 581C388 531 590 445 787 322" stroke="#22c55e" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="744" cy="344" r="36" stroke="#f8fafc" stroke-width="15"/>
+  <circle cx="886" cy="252" r="30" stroke="#f8fafc" stroke-width="13"/>
+  <circle cx="1014" cy="166" r="24" stroke="#f8fafc" stroke-width="11"/>
+  <path d="M84 593L230 548" stroke="#f97316" stroke-width="34" stroke-linecap="round"/>
+  <path d="M70 618L235 567" stroke="#020617" stroke-width="12" stroke-linecap="round"/>
+  <text x="92" y="130" fill="#f8fafc" font-family="Arial, sans-serif" font-size="58" font-weight="700">WARRANTY VERIFIED</text>
+  <text x="96" y="190" fill="#94a3b8" font-family="Arial, sans-serif" font-size="30">Fishing gear authentication record</text>
+</svg>
