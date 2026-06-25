@@ -580,9 +580,10 @@ textarea:focus {
 
 .info-list {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin: 0 0 16px;
+  min-width: 0;
 }
 
 .info-list div,
@@ -591,6 +592,7 @@ textarea:focus {
   background: var(--surface-soft);
   border: 1px solid var(--line);
   border-radius: 8px;
+  min-width: 0;
   padding: 12px;
 }
 
@@ -601,6 +603,8 @@ textarea:focus {
   display: block;
   font-size: 0.76rem;
   font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
   text-transform: uppercase;
 }
 
@@ -608,8 +612,13 @@ textarea:focus {
 .scan-grid strong,
 .countdown-box strong {
   display: block;
+  font-size: clamp(1rem, 1.7vw, 1.12rem);
   font-weight: 800;
+  line-height: 1.35;
   margin: 5px 0 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .event-list {
@@ -901,6 +910,70 @@ textarea:focus {
 
 .market-status {
   padding: 16px;
+}
+
+.activation-success-screen {
+  align-items: center;
+  background: #ffffff;
+  color: #222222;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 34px 22px;
+  text-align: center;
+}
+
+.activation-success-icon {
+  align-items: center;
+  background: #fff1eb;
+  border: 1px solid #ffd5c4;
+  border-radius: 999px;
+  color: #ee4d2d;
+  display: inline-flex;
+  height: 92px;
+  justify-content: center;
+  margin-bottom: 18px;
+  width: 92px;
+}
+
+.activation-success-screen h1 {
+  font-size: clamp(1.6rem, 7vw, 2.1rem);
+  font-weight: 850;
+  line-height: 1.12;
+  margin: 0;
+}
+
+.activation-success-screen p {
+  color: #6b625f;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  margin: 12px auto 0;
+  max-width: 340px;
+}
+
+.activation-success-loader {
+  background: #eeeeee;
+  border-radius: 999px;
+  height: 5px;
+  margin-top: 24px;
+  max-width: 220px;
+  overflow: hidden;
+  width: 56%;
+}
+
+.activation-success-loader span {
+  animation: activation-progress 2s ease forwards;
+  background: #ee4d2d;
+  display: block;
+  height: 100%;
+  width: 0;
+}
+
+@keyframes activation-progress {
+  to {
+    width: 100%;
+  }
 }
 
 .market-success {

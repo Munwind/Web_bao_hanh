@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { activateWarrantyAction, getProductByQrCode } from "@/app/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { ActivationSuccessGate } from "@/components/ActivationSuccessGate";
 import { EmptyConfig } from "@/components/EmptyConfig";
 import { hasSupabaseConfig } from "@/lib/supabase";
 import {
@@ -76,7 +77,8 @@ export default async function WarrantyPage({
         : "Đã hết thời hạn";
 
   return (
-    <main className="market-verify">
+    <ActivationSuccessGate active={justActivated}>
+      <main className="market-verify">
       <header className="market-header">
         <div>
           <span>{shopName}</span>
@@ -95,16 +97,6 @@ export default async function WarrantyPage({
         </div>
         <span>{remainingText}</span>
       </section>
-
-      {justActivated ? (
-        <section className="market-success">
-          <CheckCircle2 size={22} />
-          <div>
-            <strong>Kích hoạt bảo hành thành công</strong>
-            <span>Phiếu bảo hành điện tử của anh/chị đã được lưu trên hệ thống.</span>
-          </div>
-        </section>
-      ) : null}
 
       <section className="market-section">
         <div className="market-section-title">
@@ -223,6 +215,7 @@ export default async function WarrantyPage({
           <Phone size={16} /> Liên hệ
         </a>
       </footer>
-    </main>
+      </main>
+    </ActivationSuccessGate>
   );
 }
