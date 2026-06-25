@@ -1,13 +1,14 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   BadgeCheck,
   CalendarClock,
+  CheckCircle2,
+  Clock3,
   History,
   Phone,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
+  TicketCheck,
 } from "lucide-react";
 import { getOrActivateProduct } from "@/app/actions";
 import { EmptyConfig } from "@/components/EmptyConfig";
@@ -29,12 +30,9 @@ export async function generateMetadata({
 }) {
   const { qrCode } = await params;
   return {
-    title: `Xác thực bảo hành ${qrCode}`,
+    title: `Bảo hành ${qrCode}`,
   };
 }
-
-const defaultProductImage =
-  "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80";
 
 export default async function WarrantyPage({
   params,
@@ -54,61 +52,58 @@ export default async function WarrantyPage({
   const shopName = process.env.NEXT_PUBLIC_SHOP_NAME || "Cần Câu Bảo Hành";
   const shopPhone = process.env.NEXT_PUBLIC_SHOP_PHONE || "0900000000";
   const shopZalo = process.env.NEXT_PUBLIC_SHOP_ZALO || `https://zalo.me/${shopPhone}`;
-  const heroIcon = status.tone === "good" || status.tone === "neutral" ? ShieldCheck : ShieldAlert;
-  const HeroIcon = heroIcon;
+  const StatusIcon = status.tone === "good" || status.tone === "neutral" ? ShieldCheck : ShieldAlert;
+
+  const remainingText =
+    daysRemaining === null
+      ? "Bảo hành sẽ bắt đầu từ lần quét đầu tiên"
+      : daysRemaining > 0
+        ? `Còn ${daysRemaining} ngày bảo hành`
+        : "Thời hạn bảo hành đã kết thúc";
 
   return (
-    <main className="verify-shell">
-      <header className="verify-header">
+    <main className="verify-shell simple-verify">
+      <header className="verify-topbar">
         <div>
           <p>{shopName}</p>
-          <strong>Hệ thống xác thực QR</strong>
+          <strong>Tra cứu bảo hành</strong>
         </div>
-        <BadgeCheck size={28} />
+        <BadgeCheck size={24} />
       </header>
 
-      <section className={`verify-status verify-${status.tone}`}>
-        <HeroIcon size={34} />
-        <div>
-          <p>{justActivated ? "Vừa kích hoạt bảo hành" : "Kết quả xác thực"}</p>
-          <h1>{status.label}</h1>
+      <section className={`verify-summary verify-${status.tone}`}>
+        <div className="verify-status-line">
+          <StatusIcon size={20} />
+          <span>{justActivated ? "Đã kích hoạt" : "Trạng thái"}</span>
         </div>
+        <h1>{status.label}</h1>
+        <p>{remainingText}</p>
       </section>
 
-      <section className="product-identity">
-        <div className="product-photo">
-          <Image
-            src={product.image_url || defaultProductImage}
-            alt={product.name}
-            width={900}
-            height={600}
-            priority
-          />
+      <section className="verify-card product-ticket">
+        <div className="product-mini">
+          <div className="mini-icon">
+            <TicketCheck size={20} />
+          </div>
+          <div>
+            <p>Sản phẩm</p>
+            <h2>{product.name}</h2>
+            <span>Serial: {product.sku}</span>
+          </div>
         </div>
-        <div className="product-copy">
-          <p className="eyebrow">Serial {product.sku}</p>
-          <h2>{product.name}</h2>
-          <p>{product.description || "Sản phẩm đã được gắn QR riêng để theo dõi bảo hành."}</p>
-        </div>
+        {product.description ? <p className="product-desc">{product.description}</p> : null}
       </section>
 
-      <section className="warranty-card">
+      <section className="verify-card">
         <div className="section-title">
           <CalendarClock size={18} />
           <h2>Thông tin bảo hành</h2>
         </div>
-        <div className="countdown-box">
-          <span>Thời gian còn lại</span>
-          <strong>{daysRemaining === null ? "Chưa bắt đầu" : `${daysRemaining} ngày`}</strong>
-        </div>
-        <div className="scan-grid">
+
+        <div className="warranty-main-stat">
           <div>
-            <span>Ngày kích hoạt</span>
-            <strong>{formatDate(product.activated_at)}</strong>
-          </div>
-          <div>
-            <span>Ngày hết hạn</span>
-            <strong>{formatDate(product.expires_at)}</strong>
+            <span>Thời gian còn lại</span>
+            <strong>{daysRemaining === null ? "Chưa bắt đầu" : `${daysRemaining} ngày`}</strong>
           </div>
           <div>
             <span>Lượt còn lại</span>
@@ -117,19 +112,29 @@ export default async function WarrantyPage({
             </strong>
           </div>
         </div>
-        <div className="progress-track" aria-label="Warranty progress">
+
+        <div className="progress-track verify-progress" aria-label="Tiến độ bảo hành">
           <span style={{ width: `${progress}%` }} />
         </div>
-        <p className="scan-note">
-          QR này chỉ kích hoạt bảo hành ở lần quét đầu tiên. Các lần quét sau chỉ dùng để tra cứu
-          trạng thái hiện tại.
-        </p>
+
+        <div className="timeline-list">
+          <div>
+            <Clock3 size={17} />
+            <span>Ngày kích hoạt</span>
+            <strong>{formatDate(product.activated_at)}</strong>
+          </div>
+          <div>
+            <CheckCircle2 size={17} />
+            <span>Ngày hết hạn</span>
+            <strong>{formatDate(product.expires_at)}</strong>
+          </div>
+        </div>
       </section>
 
-      <section className="warranty-card">
+      <section className="verify-card">
         <div className="section-title">
           <History size={18} />
-          <h2>Lịch sử gần đây</h2>
+          <h2>Lịch sử bảo hành</h2>
         </div>
         {events.length === 0 ? (
           <p className="muted">Chưa có lịch sử bảo hành.</p>
@@ -138,7 +143,9 @@ export default async function WarrantyPage({
             {events.map((event) => (
               <li key={event.id}>
                 <time>{formatDateTime(event.created_at)}</time>
-                <strong>{event.event_type === "activated" ? "Kích hoạt bảo hành" : "Bảo hành đã xử lý"}</strong>
+                <strong>
+                  {event.event_type === "activated" ? "Kích hoạt bảo hành" : "Bảo hành đã xử lý"}
+                </strong>
                 <p>{event.note}</p>
               </li>
             ))}
@@ -146,14 +153,13 @@ export default async function WarrantyPage({
         )}
       </section>
 
-      <section className="support-strip">
-        <Sparkles size={20} />
+      <section className="contact-card">
         <div>
-          <strong>Cần hỗ trợ bảo hành?</strong>
-          <p>Liên hệ shop và đọc serial để nhân viên kiểm tra nhanh.</p>
+          <strong>Cần hỗ trợ?</strong>
+          <p>Liên hệ shop và đọc serial để được kiểm tra nhanh.</p>
         </div>
         <a href={shopZalo} target="_blank" rel="noreferrer">
-          <Phone size={16} /> Zalo
+          <Phone size={16} /> Liên hệ
         </a>
       </section>
     </main>
