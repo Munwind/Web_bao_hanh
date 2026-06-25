@@ -914,14 +914,22 @@ textarea:focus {
 
 .activation-success-screen {
   align-items: center;
+  animation: activation-success-hide 2.2s ease forwards;
   background: #ffffff;
   color: #222222;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 100vh;
+  inset: 0;
+  margin: 0 auto;
+  max-width: 640px;
+  min-height: 100dvh;
   padding: 34px 22px;
+  pointer-events: none;
+  position: fixed;
   text-align: center;
+  width: 100%;
+  z-index: 50;
 }
 
 .activation-success-icon {
@@ -973,6 +981,19 @@ textarea:focus {
 @keyframes activation-progress {
   to {
     width: 100%;
+  }
+}
+
+@keyframes activation-success-hide {
+  0%,
+  76% {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
   }
 }
 
