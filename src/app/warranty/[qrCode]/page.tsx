@@ -43,17 +43,21 @@ export async function generateMetadata({
 
 export default async function WarrantyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ qrCode: string }>;
+  searchParams: Promise<{ activated?: string }>;
 }) {
   if (!hasSupabaseConfig()) return <EmptyConfig />;
 
   const { qrCode } = await params;
+  const { activated } = await searchParams;
   const result = await getProductByQrCode(qrCode);
   if (!result) notFound();
 
   const { product, events } = result;
   const isWaitingActivation = !product.activated_at && !product.locked;
+  const justActivated = activated === "1" && Boolean(product.activated_at);
   const status = getProductStatus(product);
   const progress = getWarrantyProgress(product);
   const daysRemaining = getDaysRemaining(product);
@@ -91,6 +95,16 @@ export default async function WarrantyPage({
         </div>
         <span>{remainingText}</span>
       </section>
+
+      {justActivated ? (
+        <section className="market-success">
+          <CheckCircle2 size={22} />
+          <div>
+            <strong>Kích hoạt bảo hành thành công</strong>
+            <span>Phiếu bảo hành điện tử của anh/chị đã được lưu trên hệ thống.</span>
+          </div>
+        </section>
+      ) : null}
 
       <section className="market-section">
         <div className="market-section-title">

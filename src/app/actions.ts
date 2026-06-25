@@ -415,5 +415,5 @@ export async function activateWarrantyAction(qrCode: string, _: unknown, formDat
   });
 
   revalidatePath(`/admin/products/${product.id}`);
-  redirect(`/warranty/${qrCode}`);
+  redirect(`/warranty/${qrCode}?activated=1`);
 }

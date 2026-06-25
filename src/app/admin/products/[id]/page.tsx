@@ -154,7 +154,7 @@ export default async function ProductDetailPage({
           <ActionForm action={consumeAction} className="stack-form">
             <label>
               Ghi chú bảo hành
-              <textarea name="note" rows={3} placeholder="VD: Thay khoen lần 1" required />
+              <textarea name="note" rows={3} placeholder="VD: Thay cần" required />
             </label>
             <SubmitButton variant="danger">Trừ 1 lượt bảo hành</SubmitButton>
           </ActionForm>
