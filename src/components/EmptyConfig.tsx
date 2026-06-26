@@ -9,8 +9,9 @@ export function EmptyConfig() {
         </p>
         <h1 className="mt-4 text-3xl font-black">Cần cấu hình PostgreSQL trước</h1>
         <p className="mt-3 text-slate-600">
-          Tạo file <code>.env.local</code> theo <code>.env.local.example</code>, chạy{" "}
-          <code>docker compose up -d postgres</code>, rồi khởi động lại dev server.
+          Khi chạy Docker Compose, tạo file <code>.env</code> theo <code>.env.example</code>, rồi chạy{" "}
+          <code>docker compose up -d --build</code>. Khi chạy dev trực tiếp, dùng{" "}
+          <code>.env.local</code>.
         </p>
         <Link className="btn btn-primary mt-6 inline-flex" href="/">
           Về trang tổng quan

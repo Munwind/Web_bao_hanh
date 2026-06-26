@@ -26,7 +26,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-web_bao_hanh}:${POSTGRES_PASSWORD_URL_ENCODED:-web_bao_hanh_password}@postgres:5432/${POSTGRES_DB:-web_bao_hanh}
+      POSTGRES_DB: ${POSTGRES_DB:-web_bao_hanh}
+      POSTGRES_USER: ${POSTGRES_USER:-web_bao_hanh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-web_bao_hanh_password}
+      POSTGRES_PASSWORD_URL_ENCODED: ${POSTGRES_PASSWORD_URL_ENCODED:-web_bao_hanh_password}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-this-password}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
       NEXT_PUBLIC_SHOP_NAME: ${NEXT_PUBLIC_SHOP_NAME:-Can Cau Bao Hanh}
