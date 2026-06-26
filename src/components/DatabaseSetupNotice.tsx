@@ -9,26 +9,26 @@ export function DatabaseSetupNotice({ message }: { message?: string }) {
           <Database size={28} />
         </div>
         <p className="eyebrow">Cần tạo bảng dữ liệu</p>
-        <h1>Supabase chưa có bảng sản phẩm</h1>
+        <h1>PostgreSQL chưa có bảng sản phẩm</h1>
         <p className="page-subtitle">
-          App đã kết nối được Supabase, nhưng project hiện tại chưa có bảng <code>products</code>.
-          Anh cần chạy file SQL schema trước khi dùng trang admin.
+          App đã kết nối được PostgreSQL, nhưng database hiện tại chưa có đủ bảng. Anh chạy schema
+          trong <code>postgres/schema.sql</code> trước khi dùng trang admin.
         </p>
         <div className="setup-steps">
           <div>
             <FileCode2 size={18} />
-            <span>Mở Supabase Dashboard → SQL Editor</span>
+            <span>Chạy <code>docker compose up -d postgres</code> để tạo DB local</span>
           </div>
           <div>
             <FileCode2 size={18} />
-            <span>Copy toàn bộ nội dung file <code>supabase/schema.sql</code> và bấm Run</span>
+            <span>Với DB có sẵn, import file <code>postgres/schema.sql</code></span>
           </div>
           <div>
             <FileCode2 size={18} />
             <span>Refresh lại trang <code>/admin</code></span>
           </div>
         </div>
-        {message ? <p className="form-error">Supabase báo: {message}</p> : null}
+        {message ? <p className="form-error">PostgreSQL báo: {message}</p> : null}
         <Link className="btn btn-primary" href="/">
           Về trang chính
         </Link>

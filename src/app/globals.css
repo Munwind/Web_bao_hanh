@@ -1292,6 +1292,27 @@ textarea:focus {
   padding: 0 12px;
 }
 
+.market-admin-entry {
+  display: flex;
+  justify-content: center;
+  padding: 14px 16px 2px;
+}
+
+.market-admin-entry a {
+  align-items: center;
+  color: #767676;
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 750;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 8px;
+}
+
+.market-admin-entry a:hover {
+  color: #ee4d2d;
+}
+
 .verify-header {
   align-items: center;
   background: var(--surface);

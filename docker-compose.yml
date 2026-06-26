@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: web-bao-hanh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: web_bao_hanh
+      POSTGRES_USER: web_bao_hanh
+      POSTGRES_PASSWORD: web_bao_hanh_password
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U web_bao_hanh -d web_bao_hanh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: web-bao-hanh-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://web_bao_hanh:web_bao_hanh_password@postgres:5432/web_bao_hanh
+      ADMIN_PASSWORD: change-this-password
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SHOP_NAME: Can Cau Bao Hanh
+      NEXT_PUBLIC_SHOP_PHONE: "0900000000"
+      NEXT_PUBLIC_SHOP_ZALO: https://zalo.me/0900000000
+      PORT: 10000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "3000:10000"
+
+volumes:
+  postgres_data:

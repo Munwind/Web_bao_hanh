@@ -10,12 +10,13 @@ import {
   ShieldAlert,
   ShieldCheck,
   UserRound,
+  Wrench,
 } from "lucide-react";
 import { activateWarrantyAction, getProductByQrCode } from "@/app/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { ActivationSuccessGate } from "@/components/ActivationSuccessGate";
 import { EmptyConfig } from "@/components/EmptyConfig";
-import { hasSupabaseConfig } from "@/lib/supabase";
+import { hasDatabaseConfig } from "@/lib/db";
 import {
   formatDate,
   formatDateTime,
@@ -49,7 +50,7 @@ export default async function WarrantyPage({
   params: Promise<{ qrCode: string }>;
   searchParams: Promise<{ activated?: string }>;
 }) {
-  if (!hasSupabaseConfig()) return <EmptyConfig />;
+  if (!hasDatabaseConfig()) return <EmptyConfig />;
 
   const { qrCode } = await params;
   const { activated } = await searchParams;
@@ -230,6 +231,13 @@ export default async function WarrantyPage({
           <Phone size={16} /> Liên hệ
         </a>
       </footer>
+
+      <section className="market-admin-entry">
+        <a href={`/admin/products/${product.id}`}>
+          <Wrench size={15} />
+          Đại lý/Admin xử lý bảo hành
+        </a>
+      </section>
     </main>
   );
 }

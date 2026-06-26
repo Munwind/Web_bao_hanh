@@ -10,7 +10,7 @@ import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { EmptyConfig } from "@/components/EmptyConfig";
 import { PrintButton } from "@/components/PrintButton";
 import { StatusBadge } from "@/components/StatusBadge";
-import { hasSupabaseConfig } from "@/lib/supabase";
+import { hasDatabaseConfig } from "@/lib/db";
 import { getWarrantyUrl } from "@/lib/warranty";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function ProductModelPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!hasSupabaseConfig()) return <EmptyConfig />;
+  if (!hasDatabaseConfig()) return <EmptyConfig />;
 
   const { id } = await params;
   const { model, products } = await getProductModelWithProducts(id);

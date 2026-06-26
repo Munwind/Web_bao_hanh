@@ -4,9 +4,20 @@ import { loginAction } from "@/app/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { isAdminAuthenticated } from "@/lib/auth";
 
-export default async function LoginPage() {
+function safeNextPath(value?: string) {
+  return value?.startsWith("/admin") ? value : "/admin";
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  const nextPath = safeNextPath(next);
+
   if (await isAdminAuthenticated()) {
-    redirect("/admin");
+    redirect(nextPath);
   }
 
   return (
@@ -18,6 +29,7 @@ export default async function LoginPage() {
         <p className="eyebrow">Khu vực admin</p>
         <h1>Đăng nhập quản trị</h1>
         <ActionForm action={loginAction} className="stack-form">
+          <input name="next" type="hidden" value={nextPath} />
           <label>
             Mật khẩu
             <input name="password" type="password" autoComplete="current-password" required />

@@ -5,9 +5,40 @@ import { redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { randomBytes } from "node:crypto";
 import { clearAdminSession, isAdminAuthenticated, isValidAdminPassword, setAdminSession } from "@/lib/auth";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getDatabasePool, query } from "@/lib/db";
 import type { Product, ProductModel, WarrantyEvent } from "@/lib/types";
 import { addMonths, getWarrantyUrl } from "@/lib/warranty";
+
+type ProductRow = Product & {
+  product_model_id?: string | null;
+  product_model_name?: string | null;
+  product_model_code?: string | null;
+  product_model_image_url?: string | null;
+  product_model_description?: string | null;
+  product_model_default_warranty_months?: number | null;
+  product_model_default_warranty_uses?: number | null;
+  product_model_created_at?: string | null;
+  product_model_updated_at?: string | null;
+};
+
+type ProductModelWithStats = ProductModel & {
+  unit_count: number;
+  activated_count: number;
+  depleted_count: number;
+};
+
+const PRODUCT_WITH_MODEL_SELECT = `
+  p.*,
+  pm.id as product_model_id,
+  pm.name as product_model_name,
+  pm.code as product_model_code,
+  pm.image_url as product_model_image_url,
+  pm.description as product_model_description,
+  pm.default_warranty_months as product_model_default_warranty_months,
+  pm.default_warranty_uses as product_model_default_warranty_uses,
+  pm.created_at as product_model_created_at,
+  pm.updated_at as product_model_updated_at
+`;
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -35,6 +66,25 @@ function createSerial(prefix: string, index: number) {
   return `${prefix}-${String(index).padStart(4, "0")}`;
 }
 
+function mapProduct(row: ProductRow): Product {
+  return {
+    ...row,
+    product_models: row.product_model_id
+      ? {
+          id: row.product_model_id,
+          name: row.product_model_name || "",
+          code: row.product_model_code || "",
+          image_url: row.product_model_image_url || null,
+          description: row.product_model_description || null,
+          default_warranty_months: row.product_model_default_warranty_months || 0,
+          default_warranty_uses: row.product_model_default_warranty_uses || 0,
+          created_at: row.product_model_created_at || "",
+          updated_at: row.product_model_updated_at || "",
+        }
+      : null,
+  };
+}
+
 async function requireAdmin() {
   if (!(await isAdminAuthenticated())) {
     redirect("/admin/login");
@@ -43,12 +93,13 @@ async function requireAdmin() {
 
 export async function loginAction(_: unknown, formData: FormData) {
   const password = textValue(formData, "password");
+  const nextPath = textValue(formData, "next");
   if (!isValidAdminPassword(password)) {
     return { error: "Mật khẩu admin không đúng." };
   }
 
   await setAdminSession();
-  redirect("/admin");
+  redirect(nextPath.startsWith("/admin") ? nextPath : "/admin");
 }
 
 export async function logoutAction() {
@@ -70,21 +121,17 @@ export async function createProductModelAction(_: unknown, formData: FormData) {
     return { error: "Cần nhập tên loại sản phẩm và mã loại." };
   }
 
-  const supabase = getSupabaseAdmin();
-  const { error } = await supabase
-    .from("product_models")
-    .insert({
-      name,
-      code,
-      image_url: imageUrl,
-      description,
-      default_warranty_months: warrantyMonths,
-      default_warranty_uses: totalUses,
-    })
-    .select("*");
-
-  if (error) {
-    return { error: error.message };
+  try {
+    await query(
+      `
+        insert into product_models
+          (name, code, image_url, description, default_warranty_months, default_warranty_uses)
+        values ($1, $2, $3, $4, $5, $6)
+      `,
+      [name, code, imageUrl, description, warrantyMonths, totalUses],
+    );
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Không tạo được loại sản phẩm." };
   }
 
   revalidatePath("/admin");
@@ -96,34 +143,49 @@ export async function generateModelQrCodesAction(modelId: string, _: unknown, fo
 
   const quantity = Math.min(500, Math.max(1, numberValue(formData, "quantity", 1)));
   const serialStart = Math.max(1, numberValue(formData, "serial_start", 1));
-  const supabase = getSupabaseAdmin();
+  const pool = getDatabasePool();
+  const client = await pool.connect();
 
-  const { data: model, error: modelError } = await supabase
-    .from("product_models")
-    .select("*")
-    .eq("id", modelId)
-    .single<ProductModel>();
+  try {
+    await client.query("begin");
+    const modelResult = await client.query<ProductModel>("select * from product_models where id = $1", [modelId]);
+    const model = modelResult.rows[0];
 
-  if (modelError || !model) {
-    return { error: modelError?.message || "Không tìm thấy loại sản phẩm." };
-  }
+    if (!model) {
+      await client.query("rollback");
+      return { error: "Không tìm thấy loại sản phẩm." };
+    }
 
-  const products = Array.from({ length: quantity }, (_, offset) => ({
-    model_id: model.id,
-    name: model.name,
-    sku: createSerial(model.code, serialStart + offset),
-    qr_code: createQrCode(),
-    image_url: model.image_url,
-    description: model.description,
-    warranty_months: model.default_warranty_months,
-    total_warranty_uses: model.default_warranty_uses,
-    remaining_warranty_uses: model.default_warranty_uses,
-  }));
+    for (let offset = 0; offset < quantity; offset += 1) {
+      await client.query(
+        `
+          insert into products
+            (
+              model_id, name, sku, qr_code, image_url, description,
+              warranty_months, total_warranty_uses, remaining_warranty_uses
+            )
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `,
+        [
+          model.id,
+          model.name,
+          createSerial(model.code, serialStart + offset),
+          createQrCode(),
+          model.image_url,
+          model.description,
+          model.default_warranty_months,
+          model.default_warranty_uses,
+          model.default_warranty_uses,
+        ],
+      );
+    }
 
-  const { error } = await supabase.from("products").insert(products);
-
-  if (error) {
-    return { error: error.message };
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    return { error: error instanceof Error ? error.message : "Không sinh được QR." };
+  } finally {
+    client.release();
   }
 
   revalidatePath("/admin");
@@ -147,47 +209,71 @@ export async function updateProductAction(productId: string, _: unknown, formDat
     return { error: "Cần nhập tên sản phẩm và serial." };
   }
 
-  const supabase = getSupabaseAdmin();
-  const { data: current } = await supabase
-    .from("products")
-    .select("activated_at, model_id")
-    .eq("id", productId)
-    .single<Pick<Product, "activated_at" | "model_id">>();
+  const pool = getDatabasePool();
+  const client = await pool.connect();
 
-  const expiresAt = current?.activated_at
-    ? addMonths(new Date(current.activated_at), warrantyMonths).toISOString()
-    : null;
+  try {
+    await client.query("begin");
+    const currentResult = await client.query<Pick<Product, "activated_at" | "model_id">>(
+      "select activated_at, model_id from products where id = $1",
+      [productId],
+    );
+    const current = currentResult.rows[0];
+    const expiresAt = current?.activated_at
+      ? addMonths(new Date(current.activated_at), warrantyMonths).toISOString()
+      : null;
 
-  const { error } = await supabase
-    .from("products")
-    .update({
-      name,
-      sku,
-      image_url: imageUrl,
-      description,
-      warranty_months: warrantyMonths,
-      total_warranty_uses: totalUses,
-      remaining_warranty_uses: Math.min(remainingUses, totalUses),
-      expires_at: expiresAt,
-      locked,
-    })
-    .eq("id", productId);
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  if (current?.model_id) {
-    await supabase
-      .from("product_models")
-      .update({
+    await client.query(
+      `
+        update products
+        set
+          name = $1,
+          sku = $2,
+          image_url = $3,
+          description = $4,
+          warranty_months = $5,
+          total_warranty_uses = $6,
+          remaining_warranty_uses = $7,
+          expires_at = $8,
+          locked = $9
+        where id = $10
+      `,
+      [
         name,
-        image_url: imageUrl,
+        sku,
+        imageUrl,
         description,
-        default_warranty_months: warrantyMonths,
-        default_warranty_uses: totalUses,
-      })
-      .eq("id", current.model_id);
+        warrantyMonths,
+        totalUses,
+        Math.min(remainingUses, totalUses),
+        expiresAt,
+        locked,
+        productId,
+      ],
+    );
+
+    if (current?.model_id) {
+      await client.query(
+        `
+          update product_models
+          set
+            name = $1,
+            image_url = $2,
+            description = $3,
+            default_warranty_months = $4,
+            default_warranty_uses = $5
+          where id = $6
+        `,
+        [name, imageUrl, description, warrantyMonths, totalUses, current.model_id],
+      );
+    }
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    return { error: error instanceof Error ? error.message : "Không lưu được sản phẩm." };
+  } finally {
+    client.release();
   }
 
   revalidatePath("/admin");
@@ -199,130 +285,147 @@ export async function consumeWarrantyUseAction(productId: string, _: unknown, fo
   await requireAdmin();
 
   const note = textValue(formData, "note");
-  const supabase = getSupabaseAdmin();
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", productId)
-    .single<Product>();
+  const pool = getDatabasePool();
+  const client = await pool.connect();
+  let qrCode: string | null = null;
 
-  if (error || !product) {
-    return { error: error?.message || "Không tìm thấy sản phẩm." };
+  try {
+    await client.query("begin");
+    const productResult = await client.query<Product>("select * from products where id = $1 for update", [productId]);
+    const product = productResult.rows[0];
+
+    if (!product) {
+      await client.query("rollback");
+      return { error: "Không tìm thấy sản phẩm." };
+    }
+
+    if (product.remaining_warranty_uses <= 0) {
+      await client.query("rollback");
+      return { error: "Sản phẩm đã hết lượt bảo hành." };
+    }
+
+    qrCode = product.qr_code;
+    await client.query("update products set remaining_warranty_uses = remaining_warranty_uses - 1 where id = $1", [
+      productId,
+    ]);
+    await client.query(
+      `
+        insert into warranty_events (product_id, event_type, note)
+        values ($1, 'manual_use', $2)
+      `,
+      [productId, note || "Admin trừ 1 lượt bảo hành"],
+    );
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    return { error: error instanceof Error ? error.message : "Không trừ được lượt bảo hành." };
+  } finally {
+    client.release();
   }
-
-  if (product.remaining_warranty_uses <= 0) {
-    return { error: "Sản phẩm đã hết lượt bảo hành." };
-  }
-
-  const { error: updateError } = await supabase
-    .from("products")
-    .update({ remaining_warranty_uses: product.remaining_warranty_uses - 1 })
-    .eq("id", productId);
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
-
-  await supabase.from("warranty_events").insert({
-    product_id: productId,
-    event_type: "manual_use",
-    note: note || "Admin trừ 1 lượt bảo hành",
-  });
 
   revalidatePath("/admin");
   revalidatePath(`/admin/products/${productId}`);
-  revalidatePath(`/warranty/${product.qr_code}`);
+  if (qrCode) revalidatePath(`/warranty/${qrCode}`);
   return { ok: true };
 }
 
-export async function getProducts(query = "") {
+export async function getProducts(queryText = "") {
   await requireAdmin();
-  const supabase = getSupabaseAdmin();
-  const request = supabase
-    .from("products")
-    .select("*, product_models(*)")
-    .order("created_at", { ascending: false });
+  const trimmed = queryText.trim();
+  const values: unknown[] = [];
+  let where = "";
 
-  const trimmed = query.trim();
-  const { data, error } = trimmed
-    ? await request.or(
-        `name.ilike.%${trimmed}%,sku.ilike.%${trimmed}%,qr_code.ilike.%${trimmed}%`,
-      )
-    : await request;
+  if (trimmed) {
+    values.push(`%${trimmed}%`);
+    where = "where p.name ilike $1 or p.sku ilike $1 or p.qr_code ilike $1";
+  }
 
-  if (error) throw new Error(error.message);
-  return data as Product[];
+  const result = await query<ProductRow>(
+    `
+      select ${PRODUCT_WITH_MODEL_SELECT}
+      from products p
+      left join product_models pm on pm.id = p.model_id
+      ${where}
+      order by p.created_at desc
+    `,
+    values,
+  );
+
+  return result.rows.map(mapProduct);
 }
 
-export async function getProductModels(query = "") {
+export async function getProductModels(queryText = "") {
   await requireAdmin();
-  const supabase = getSupabaseAdmin();
-  const trimmed = query.trim();
+  const trimmed = queryText.trim();
+  const values: unknown[] = [];
+  let where = "";
 
-  const modelsRequest = supabase
-    .from("product_models")
-    .select("*")
-    .order("created_at", { ascending: false });
+  if (trimmed) {
+    values.push(`%${trimmed}%`);
+    where = "where pm.name ilike $1 or pm.code ilike $1";
+  }
 
-  const { data: models, error: modelsError } = trimmed
-    ? await modelsRequest.or(`name.ilike.%${trimmed}%,code.ilike.%${trimmed}%`)
-    : await modelsRequest;
+  const result = await query<ProductModelWithStats>(
+    `
+      select
+        pm.*,
+        count(p.id)::int as unit_count,
+        count(p.id) filter (where p.activated_at is not null)::int as activated_count,
+        count(p.id) filter (where p.remaining_warranty_uses <= 0)::int as depleted_count
+      from product_models pm
+      left join products p on p.model_id = pm.id
+      ${where}
+      group by pm.id
+      order by pm.created_at desc
+    `,
+    values,
+  );
 
-  if (modelsError) throw new Error(modelsError.message);
-
-  const { data: products, error: productsError } = await supabase
-    .from("products")
-    .select("id, model_id, activated_at, remaining_warranty_uses");
-
-  if (productsError) throw new Error(productsError.message);
-
-  return (models || []).map((model) => {
-    const units = (products || []).filter((product) => product.model_id === model.id);
-    return {
-      ...model,
-      unit_count: units.length,
-      activated_count: units.filter((product) => product.activated_at).length,
-      depleted_count: units.filter((product) => product.remaining_warranty_uses <= 0).length,
-    };
-  });
+  return result.rows;
 }
 
 export async function getProductModelWithProducts(id: string) {
   await requireAdmin();
-  const supabase = getSupabaseAdmin();
-  const [{ data: model, error: modelError }, { data: products, error: productsError }] =
-    await Promise.all([
-      supabase.from("product_models").select("*").eq("id", id).single<ProductModel>(),
-      supabase
-        .from("products")
-        .select("*, product_models(*)")
-        .eq("model_id", id)
-        .order("sku", { ascending: true })
-        .returns<Product[]>(),
-    ]);
+  const [modelResult, productsResult] = await Promise.all([
+    query<ProductModel>("select * from product_models where id = $1", [id]),
+    query<ProductRow>(
+      `
+        select ${PRODUCT_WITH_MODEL_SELECT}
+        from products p
+        left join product_models pm on pm.id = p.model_id
+        where p.model_id = $1
+        order by p.sku asc
+      `,
+      [id],
+    ),
+  ]);
 
-  if (modelError) throw new Error(modelError.message);
-  if (productsError) throw new Error(productsError.message);
-  return { model, products: products || [] };
+  const model = modelResult.rows[0];
+  if (!model) throw new Error("Không tìm thấy loại sản phẩm.");
+
+  return { model, products: productsResult.rows.map(mapProduct) };
 }
 
 export async function getProductWithEvents(id: string) {
   await requireAdmin();
-  const supabase = getSupabaseAdmin();
-  const [{ data: product, error: productError }, { data: events, error: eventsError }] =
-    await Promise.all([
-      supabase.from("products").select("*, product_models(*)").eq("id", id).single<Product>(),
-      supabase
-        .from("warranty_events")
-        .select("*")
-        .eq("product_id", id)
-        .order("created_at", { ascending: false })
-        .returns<WarrantyEvent[]>(),
-    ]);
+  const [productResult, eventsResult] = await Promise.all([
+    query<ProductRow>(
+      `
+        select ${PRODUCT_WITH_MODEL_SELECT}
+        from products p
+        left join product_models pm on pm.id = p.model_id
+        where p.id = $1
+      `,
+      [id],
+    ),
+    query<WarrantyEvent>("select * from warranty_events where product_id = $1 order by created_at desc", [id]),
+  ]);
 
-  if (productError) throw new Error(productError.message);
-  if (eventsError) throw new Error(eventsError.message);
-  return { product, events: events || [] };
+  const product = productResult.rows[0];
+  if (!product) throw new Error("Không tìm thấy sản phẩm.");
+
+  return { product: mapProduct(product), events: eventsResult.rows };
 }
 
 export async function getQrDataUrl(qrCode: string) {
@@ -337,26 +440,33 @@ export async function getQrDataUrl(qrCode: string) {
 }
 
 export async function getProductByQrCode(qrCode: string) {
-  const supabase = getSupabaseAdmin();
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("*, product_models(*)")
-    .eq("qr_code", qrCode)
-    .single<Product>();
+  const [productResult, eventsResult] = await Promise.all([
+    query<ProductRow>(
+      `
+        select ${PRODUCT_WITH_MODEL_SELECT}
+        from products p
+        left join product_models pm on pm.id = p.model_id
+        where p.qr_code = $1
+      `,
+      [qrCode],
+    ),
+    query<WarrantyEvent>(
+      `
+        select we.*
+        from warranty_events we
+        join products p on p.id = we.product_id
+        where p.qr_code = $1
+        order by we.created_at desc
+        limit 5
+      `,
+      [qrCode],
+    ),
+  ]);
 
-  if (error || !product) {
-    return null;
-  }
+  const product = productResult.rows[0];
+  if (!product) return null;
 
-  const { data: events } = await supabase
-    .from("warranty_events")
-    .select("*")
-    .eq("product_id", product.id)
-    .order("created_at", { ascending: false })
-    .limit(5)
-    .returns<WarrantyEvent[]>();
-
-  return { product, events: events || [] };
+  return { product: mapProduct(product), events: eventsResult.rows };
 }
 
 export async function activateWarrantyAction(qrCode: string, _: unknown, formData: FormData) {
@@ -371,49 +481,63 @@ export async function activateWarrantyAction(qrCode: string, _: unknown, formDat
     return { error: "Số điện thoại chưa đúng định dạng." };
   }
 
-  const supabase = getSupabaseAdmin();
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("qr_code", qrCode)
-    .single<Product>();
+  const pool = getDatabasePool();
+  const client = await pool.connect();
+  let productId: string | null = null;
+  let alreadyActivated = false;
 
-  if (error || !product) {
-    return { error: error?.message || "Không tìm thấy sản phẩm." };
+  try {
+    await client.query("begin");
+    const productResult = await client.query<Product>("select * from products where qr_code = $1 for update", [
+      qrCode,
+    ]);
+    const product = productResult.rows[0];
+
+    if (!product) {
+      await client.query("rollback");
+      return { error: "Không tìm thấy sản phẩm." };
+    }
+
+    if (product.locked) {
+      await client.query("rollback");
+      return { error: "Mã QR này đang bị khóa, vui lòng liên hệ shop." };
+    }
+
+    if (product.activated_at) {
+      await client.query("rollback");
+      alreadyActivated = true;
+    } else {
+      const now = new Date();
+      const expiresAt = addMonths(now, product.warranty_months);
+      productId = product.id;
+
+      await client.query(
+        `
+          update products
+          set customer_name = $1, customer_phone = $2, activated_at = $3, expires_at = $4
+          where id = $5
+        `,
+        [customerName, customerPhone, now.toISOString(), expiresAt.toISOString(), product.id],
+      );
+
+      await client.query(
+        `
+          insert into warranty_events (product_id, event_type, note)
+          values ($1, 'activated', $2)
+        `,
+        [product.id, "Khách kích hoạt bảo hành qua QR"],
+      );
+
+      await client.query("commit");
+    }
+  } catch (error) {
+    await client.query("rollback");
+    return { error: error instanceof Error ? error.message : "Không kích hoạt được bảo hành." };
+  } finally {
+    client.release();
   }
 
-  if (product.locked) {
-    return { error: "Mã QR này đang bị khóa, vui lòng liên hệ shop." };
-  }
-
-  if (product.activated_at) {
-    redirect(`/warranty/${qrCode}`);
-  }
-
-  const now = new Date();
-  const expiresAt = addMonths(now, product.warranty_months);
-  const { data: updated, error: updateError } = await supabase
-    .from("products")
-    .update({
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      activated_at: now.toISOString(),
-      expires_at: expiresAt.toISOString(),
-    })
-    .eq("id", product.id)
-    .select("*, product_models(*)")
-    .single<Product>();
-
-  if (updateError || !updated) {
-    return { error: updateError?.message || "Không kích hoạt được bảo hành." };
-  }
-
-  await supabase.from("warranty_events").insert({
-    product_id: product.id,
-    event_type: "activated",
-    note: "Khách kích hoạt bảo hành qua QR",
-  });
-
-  revalidatePath(`/admin/products/${product.id}`);
+  if (alreadyActivated) redirect(`/warranty/${qrCode}`);
+  if (productId) revalidatePath(`/admin/products/${productId}`);
   redirect(`/warranty/${qrCode}?activated=1`);
 }

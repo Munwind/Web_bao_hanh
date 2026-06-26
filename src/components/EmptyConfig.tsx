@@ -7,10 +7,10 @@ export function EmptyConfig() {
         <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-700">
           Cần câu bảo hành
         </p>
-        <h1 className="mt-4 text-3xl font-black">Cần cấu hình Supabase trước</h1>
+        <h1 className="mt-4 text-3xl font-black">Cần cấu hình PostgreSQL trước</h1>
         <p className="mt-3 text-slate-600">
-          Tạo file <code>.env.local</code> theo <code>.env.local.example</code>, chạy SQL trong{" "}
-          <code>supabase/schema.sql</code>, rồi khởi động lại dev server.
+          Tạo file <code>.env.local</code> theo <code>.env.local.example</code>, chạy{" "}
+          <code>docker compose up -d postgres</code>, rồi khởi động lại dev server.
         </p>
         <Link className="btn btn-primary mt-6 inline-flex" href="/">
           Về trang tổng quan

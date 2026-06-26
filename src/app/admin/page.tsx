@@ -4,7 +4,7 @@ import { createProductModelAction, getProductModels, logoutAction } from "@/app/
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { DatabaseSetupNotice } from "@/components/DatabaseSetupNotice";
 import { EmptyConfig } from "@/components/EmptyConfig";
-import { hasSupabaseConfig } from "@/lib/supabase";
+import { hasDatabaseConfig } from "@/lib/db";
 
 type ProductModelRow = Awaited<ReturnType<typeof getProductModels>>[number];
 
@@ -15,7 +15,7 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  if (!hasSupabaseConfig()) return <EmptyConfig />;
+  if (!hasDatabaseConfig()) return <EmptyConfig />;
 
   const { q = "" } = await searchParams;
   let models: ProductModelRow[] = [];
