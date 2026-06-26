@@ -28,6 +28,7 @@ Schema duoc tu dong chay lan dau khi container Postgres tao volume moi tu file `
 ## Chay full Docker Compose
 
 ```bash
+copy .env.example .env
 docker compose up -d --build
 ```
 
@@ -38,20 +39,26 @@ App se chay tai `http://localhost:3000`, Postgres chay trong container rieng va 
 Nen dung Docker Compose va reverse proxy Caddy/Nginx:
 
 ```bash
+cp .env.example .env
+# sua .env: domain, shop, admin password, postgres password
 docker compose up -d --build
 ```
 
 Sau do tro domain vao app port `3000` hoac sua compose/reverse proxy theo ha tang cua anh.
 
-Bien moi truong quan trong:
+Bien moi truong quan trong trong file `.env`:
 
 ```bash
 NEXT_PUBLIC_SITE_URL=https://ten-domain-cua-anh.vn
 NEXT_PUBLIC_SHOP_NAME=Ten shop
 NEXT_PUBLIC_SHOP_PHONE=0900000000
 NEXT_PUBLIC_SHOP_ZALO=https://zalo.me/0900000000
-DATABASE_URL=postgresql://web_bao_hanh:web_bao_hanh_password@postgres:5432/web_bao_hanh
 ADMIN_PASSWORD=mat-khau-admin
+POSTGRES_DB=web_bao_hanh
+POSTGRES_USER=web_bao_hanh
+POSTGRES_PASSWORD=mat-khau-postgres
+APP_HOST_PORT=3000
+POSTGRES_HOST_PORT=15432
 ```
 
 ## Backup database
