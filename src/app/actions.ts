@@ -156,29 +156,34 @@ export async function generateModelQrCodesAction(modelId: string, _: unknown, fo
       return { error: "Không tìm thấy loại sản phẩm." };
     }
 
-    for (let offset = 0; offset < quantity; offset += 1) {
-      await client.query(
-        `
-          insert into products
-            (
-              model_id, name, sku, qr_code, image_url, description,
-              warranty_months, total_warranty_uses, remaining_warranty_uses
-            )
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `,
-        [
-          model.id,
-          model.name,
-          createSerial(model.code, serialStart + offset),
-          createQrCode(),
-          model.image_url,
-          model.description,
-          model.default_warranty_months,
-          model.default_warranty_uses,
-          model.default_warranty_uses,
-        ],
+    const values: unknown[] = [];
+    const rows = Array.from({ length: quantity }, (_, offset) => {
+      const base = offset * 9;
+      values.push(
+        model.id,
+        model.name,
+        createSerial(model.code, serialStart + offset),
+        createQrCode(),
+        model.image_url,
+        model.description,
+        model.default_warranty_months,
+        model.default_warranty_uses,
+        model.default_warranty_uses,
       );
-    }
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9})`;
+    });
+
+    await client.query(
+      `
+        insert into products
+          (
+            model_id, name, sku, qr_code, image_url, description,
+            warranty_months, total_warranty_uses, remaining_warranty_uses
+          )
+        values ${rows.join(", ")}
+      `,
+      values,
+    );
 
     await client.query("commit");
   } catch (error) {
@@ -405,6 +410,45 @@ export async function getProductModelWithProducts(id: string) {
   if (!model) throw new Error("Không tìm thấy loại sản phẩm.");
 
   return { model, products: productsResult.rows.map(mapProduct) };
+}
+
+export async function getProductModelWithProductsPage(id: string, page = 1, pageSize = 50) {
+  await requireAdmin();
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(100, Math.max(10, pageSize));
+  const offset = (safePage - 1) * safePageSize;
+
+  const [modelResult, countResult, productsResult] = await Promise.all([
+    query<ProductModel>("select * from product_models where id = $1", [id]),
+    query<{ total: string }>("select count(*)::text as total from products where model_id = $1", [id]),
+    query<ProductRow>(
+      `
+        select ${PRODUCT_WITH_MODEL_SELECT}
+        from products p
+        left join product_models pm on pm.id = p.model_id
+        where p.model_id = $1
+        order by p.sku asc
+        limit $2 offset $3
+      `,
+      [id, safePageSize, offset],
+    ),
+  ]);
+
+  const model = modelResult.rows[0];
+  if (!model) throw new Error("KhÃ´ng tÃ¬m tháº¥y loáº¡i sáº£n pháº©m.");
+
+  const total = Number(countResult.rows[0]?.total || 0);
+
+  return {
+    model,
+    products: productsResult.rows.map(mapProduct),
+    pagination: {
+      page: safePage,
+      pageSize: safePageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+    },
+  };
 }
 
 export async function getProductWithEvents(id: string) {

@@ -1,38 +1,33 @@
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Boxes, ExternalLink, Plus, QrCode, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Boxes, ChevronLeft, ChevronRight, ExternalLink, Plus, Printer, QrCode, ShieldCheck } from "lucide-react";
 import {
   generateModelQrCodesAction,
-  getProductModelWithProducts,
-  getQrDataUrl,
+  getProductModelWithProductsPage,
 } from "@/app/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { EmptyConfig } from "@/components/EmptyConfig";
-import { PrintButton } from "@/components/PrintButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { hasDatabaseConfig } from "@/lib/db";
-import { getWarrantyUrl } from "@/lib/warranty";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductModelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   if (!hasDatabaseConfig()) return <EmptyConfig />;
 
   const { id } = await params;
-  const { model, products } = await getProductModelWithProducts(id);
+  const { page: pageParam = "1" } = await searchParams;
+  const currentPage = Number(pageParam) || 1;
+  const { model, products, pagination } = await getProductModelWithProductsPage(id, currentPage, 20);
   const generateAction = generateModelQrCodesAction.bind(null, model.id);
-  const nextSerialNumber = products.length + 1;
-  const qrLabels = await Promise.all(
-    products.map(async (product) => ({
-      product,
-      qrDataUrl: await getQrDataUrl(product.qr_code),
-      warrantyUrl: getWarrantyUrl(product.qr_code),
-    })),
-  );
+  const nextSerialNumber = pagination.total + 1;
+  const previousPage = Math.max(1, pagination.page - 1);
+  const nextPage = Math.min(pagination.totalPages, pagination.page + 1);
 
   return (
     <main className="admin-shell">
@@ -43,10 +38,16 @@ export default async function ProductModelPage({
           </Link>
           <h1>{model.name}</h1>
           <p className="page-subtitle">
-            Mã loại: {model.code} · {products.length} QR đã sinh
+            Mã loại: {model.code} · {pagination.total} QR đã sinh
           </p>
         </div>
-        <PrintButton disabled={products.length === 0} />
+        <Link
+          aria-disabled={pagination.total === 0}
+          className={`btn btn-primary ${pagination.total === 0 ? "is-disabled" : ""}`}
+          href={`/admin/models/${model.id}/print`}
+        >
+          <Printer size={16} /> Mở trang in QR
+        </Link>
       </header>
 
       <section className="model-detail-grid no-print">
@@ -89,7 +90,7 @@ export default async function ProductModelPage({
             </div>
             <div>
               <dt>Đã sinh</dt>
-              <dd>{products.length} QR</dd>
+              <dd>{pagination.total} QR</dd>
             </div>
           </dl>
           {model.description ? <p className="muted">{model.description}</p> : null}
@@ -101,38 +102,54 @@ export default async function ProductModelPage({
           <ShieldCheck size={18} />
           <h2>Danh sách serial</h2>
         </div>
-        {products.length === 0 ? (
+        {pagination.total === 0 ? (
           <p className="muted">Chưa có QR nào. Sinh QR ở form bên trên trước khi in.</p>
         ) : (
-          <div className="product-list">
-            {products.map((product) => (
-              <Link className="product-row" href={`/admin/products/${product.id}`} key={product.id}>
-                <div>
-                  <strong>{product.sku}</strong>
-                  <span>
-                    <QrCode size={14} /> {product.qr_code}
-                  </span>
-                </div>
-                <StatusBadge product={product} />
-                <span>{product.remaining_warranty_uses}/{product.total_warranty_uses} lượt</span>
-                <ExternalLink size={17} />
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="qr-print-sheet">
-        {qrLabels.map(({ product, qrDataUrl, warrantyUrl }) => (
-          <article className="qr-print-label" key={product.id}>
-            <div>
-              <strong>{model.name}</strong>
-              <span>{product.sku}</span>
+          <>
+            <div className="serial-summary">
+              <span>
+                Hiển thị {products.length} / {pagination.total} serial
+              </span>
+              <strong>
+                Trang {pagination.page} / {pagination.totalPages}
+              </strong>
             </div>
-            <Image src={qrDataUrl} alt={`QR ${product.sku}`} width={180} height={180} unoptimized />
-            <small>{warrantyUrl}</small>
-          </article>
-        ))}
+            <div className="product-list">
+              {products.map((product) => (
+                <Link className="product-row" href={`/admin/products/${product.id}`} key={product.id}>
+                  <div>
+                    <strong>{product.sku}</strong>
+                    <span>
+                      <QrCode size={14} /> {product.qr_code}
+                    </span>
+                  </div>
+                  <StatusBadge product={product} />
+                  <span>{product.remaining_warranty_uses}/{product.total_warranty_uses} lượt</span>
+                  <ExternalLink size={17} />
+                </Link>
+              ))}
+            </div>
+            {pagination.totalPages > 1 ? (
+              <nav className="pagination-bar" aria-label="Phân trang serial">
+                <Link
+                  aria-disabled={pagination.page <= 1}
+                  className={`btn btn-ghost ${pagination.page <= 1 ? "is-disabled" : ""}`}
+                  href={`/admin/models/${model.id}?page=${previousPage}`}
+                >
+                  <ChevronLeft size={16} /> Trang trước
+                </Link>
+                <span>{pagination.page} / {pagination.totalPages}</span>
+                <Link
+                  aria-disabled={pagination.page >= pagination.totalPages}
+                  className={`btn btn-ghost ${pagination.page >= pagination.totalPages ? "is-disabled" : ""}`}
+                  href={`/admin/models/${model.id}?page=${nextPage}`}
+                >
+                  Trang sau <ChevronRight size={16} />
+                </Link>
+              </nav>
+            ) : null}
+          </>
+        )}
       </section>
     </main>
   );
